@@ -12,8 +12,8 @@ INSTRUCAO = (
     "Você classifica avaliações de clientes de restaurante de delivery. "
     "Responda apenas com JSON neste formato: "
     '{"Sentimento": "positivo" | "negativo" | "misto", '
-    '"tema": "comida" | "entrega" | "atendimento" | "preço" | "outro", '
-    '"resumo": "uma frase curta"}'
+    '"Tema": "comida" | "entrega" | "atendimento" | "preço" | "outro", '
+    '"Resumo": "uma frase curta"}'
 ) #é o system prompt
 
 def classificar(texto):
@@ -31,4 +31,4 @@ def classificar(texto):
 avaliacao = "Gostei muito do sabor, mas o pedido demorou muito pra chegar."
 resultado = classificar(avaliacao)
 print(resultado)
-print(resultado["sentimento"])
+print(resultado["Sentimento"])
