@@ -66,7 +66,7 @@ resultados = []
 
 #repete para cada avaliação
 for texto in avaliacoes:
-    print(f"Classificando {texto[:50]}...") #mostra os primeiros 50 caracteres da avaliação que está classificando 
+    print(f"Classificando: {texto[:50]}...") #mostra os primeiros 50 caracteres da avaliação que está classificando 
     resultado = classificar(texto) #reusltado recebe o que a função 'classificar' retornar de acordo com o texto(avaliação)
 
     #caso der erro nas três tentativas ele pula para próxima avaliação
