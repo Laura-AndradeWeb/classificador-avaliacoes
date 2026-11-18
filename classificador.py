@@ -3,10 +3,12 @@ from dotenv import load_dotenv #lê o arquivo .env para ter acesso a chave
 from google import genai #biblioteca do Gemini
 from google.genai import types #traz classes de configuração (GenerateContentConfig)
 import time #usado para fazer pausas
+import sqlite3 #biblioteca do sqlite
+from datetime import datetime #biblioteca para pegar o horário
 
 load_dotenv() #lê o arquivo .env para ter acesso a chave do Gemini
 
-MODELO = "gemini-3.8-flash"
+MODELO = "gemini-3.1-flash-lite"
 client = genai.Client() #cria conexão com o Gemini e procura a chave no código
 
 INSTRUCAO = (
@@ -46,6 +48,37 @@ def classificar(texto):
             time.sleep(5)
     return None #caso der erro ele retorna vazio
 
+def conectar():
+    conn = sqlite3.connect("avaliacoes.db")
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS avaliacoes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            texto TEXT UNIQUE,
+            sentimento TEXT,
+            tema TEXT,
+            resumo TEXT,
+            criado_em TEXT
+        )
+    """)
+    conn.commit()
+    return conn
+
+def ja_classificada(conn, texto):
+    linha = conn.execute(
+        "SELECT 1 FROM avaliacoes WHERE texto = ?", (texto,)
+    ).fetchone()
+    return linha is not None
+
+def salvar(conn, texto, resultado):
+    agora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    conn.execute(
+        "INSERT INTO avaliacoes (texto, sentimento, tema, resumo, criado_em) "
+        "VALUES (?, ?, ?, ?, ?)",
+        (texto, resultado["Sentimento"], resultado["Tema"], resultado["Resumo"], agora)
+    )
+    conn.commit()
+
+
 #lista com os textos de avaliações
 avaliacoes = [
     "Estava tudo uma delícia, comprarei novamente.",
@@ -61,24 +94,37 @@ avaliacoes = [
     "Poderiam mandar as bebidas numa embalagem separada, mas de resto estava tudo okay."
 ]
 
-#lista vazia para armazenar os resultados
-resultados = []
+conn = conectar()
+novas = 0
 
-#repete para cada avaliação
 for texto in avaliacoes:
-    print(f"Classificando: {texto[:50]}...") #mostra os primeiros 50 caracteres da avaliação que está classificando 
-    resultado = classificar(texto) #reusltado recebe o que a função 'classificar' retornar de acordo com o texto(avaliação)
-
-    #caso der erro nas três tentativas ele pula para próxima avaliação
-    if resultado is None:
-        print( "Não consegui classificar, pulando para próxima avaliação...")
+    if ja_classificada(conn, texto):
+        print(f"Já classificada, pulando: {texto[:50]}...")
         continue
 
-    
-    resultado["Texto"] = texto #coloca no código uma nova chave chamada Texto que armazena a avaliação abixo da resposta da mesma
-    resultados.append(resultado) #acrescenta o dicionário 'resultado' na lista de dicionário 'resultados'
-    print(f" {resultado['Sentimento']} | {resultado["Tema"]}")
+    print(f"Classificando: {texto[:50]}...")
+    resultado = classificar(texto)
+
+    if resultado is None:
+        print(" Não consegui classificar, pulando para próxima avaliação")
+        continue
+
+    salvar(conn, texto, resultado)
+    novas =+ 1
+    print(f" {resultado['Sentimento']} | {resultado['Tema']}")
     time.sleep(2)
 
-#mostra a quantidade de avaliações classificadas
-print(f"\n{len(resultados)} de {len(avaliacoes)} avaliações classificadas.")
+print(f"\n{novas} avaliações novas salvas.")
+
+print("\nReclamações por tema: ")
+cursor = conn.execute("""
+        SELECT tema, COUNT(*) AS total
+        FROM avaliacoes
+        WHERE sentimento = 'negativo'
+        GROUP BY tema
+        ORDER BY total DESC
+""")
+for tema, total in cursor.fetchall():
+    print(f" {tema}: {total}")
+
+conn.close()
