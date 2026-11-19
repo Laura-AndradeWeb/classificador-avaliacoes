@@ -49,7 +49,9 @@ def classificar(texto):
     return None #caso der erro ele retorna vazio
 
 def conectar():
-    conn = sqlite3.connect("avaliacoes.db")
+    conn = sqlite3.connect("avaliacoes.db") #abre o banco e cria a tabela; conn = conexão
+    #cria tabela avaliações no banco de dados
+    #as três aspas permitem escrever um texto em várias linhas
     conn.execute("""
         CREATE TABLE IF NOT EXISTS avaliacoes (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -60,23 +62,27 @@ def conectar():
             criado_em TEXT
         )
     """)
-    conn.commit()
+    conn.commit() #confirma a alteração no arquivo
     return conn
 
+#caso procura no banco se já existe uma linha com a avaliação
+#o SELECT 1 significa que ele só quer saber se já existe, sem trazer dados
+#fetchone devolve a primeira linha encontrada, ou None se não ouver
 def ja_classificada(conn, texto):
     linha = conn.execute(
         "SELECT 1 FROM avaliacoes WHERE texto = ?", (texto,)
     ).fetchone()
-    return linha is not None
+    return linha is not None #retorna trua se já existe ou false se não existe
 
+#salva no banco a avaliação com o resultado que a IA retornou
 def salvar(conn, texto, resultado):
-    agora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    agora = datetime.now().strftime("%Y-%m-%d %H:%M:%S") #guarda o momento que está sendo executado
     conn.execute(
         "INSERT INTO avaliacoes (texto, sentimento, tema, resumo, criado_em) "
         "VALUES (?, ?, ?, ?, ?)",
         (texto, resultado["Sentimento"], resultado["Tema"], resultado["Resumo"], agora)
-    )
-    conn.commit()
+    ) #coloca os valores na tabela
+    conn.commit() #grava a alteração
 
 
 #lista com os textos de avaliações
