@@ -49,7 +49,8 @@ def classificar(texto):
     return None #caso der erro ele retorna vazio
 
 def conectar():
-    conn = sqlite3.connect("avaliacoes.db") #abre o banco e cria a tabela; conn = conexão
+    conn = sqlite3.connect("avaliacoes.db") #abre o banco e cria se ele não existir - conn == conexão
+
     #cria tabela avaliações no banco de dados
     #as três aspas permitem escrever um texto em várias linhas
     conn.execute("""
@@ -65,14 +66,14 @@ def conectar():
     conn.commit() #confirma a alteração no arquivo
     return conn
 
-#caso procura no banco se já existe uma linha com a avaliação
+#procura no banco se já existe uma linha com a avaliação
 #o SELECT 1 significa que ele só quer saber se já existe, sem trazer dados
 #fetchone devolve a primeira linha encontrada, ou None se não ouver
 def ja_classificada(conn, texto):
     linha = conn.execute(
         "SELECT 1 FROM avaliacoes WHERE texto = ?", (texto,)
     ).fetchone()
-    return linha is not None #retorna trua se já existe ou false se não existe
+    return linha is not None #retorna true se já existe ou false se não existe
 
 #salva no banco a avaliação com o resultado que a IA retornou
 def salvar(conn, texto, resultado):
@@ -104,24 +105,31 @@ conn = conectar()
 novas = 0
 
 for texto in avaliacoes:
+
+    #verifica se a avaliação já está no banco, se true, pula para próxima avaliação
     if ja_classificada(conn, texto):
         print(f"Já classificada, pulando: {texto[:50]}...")
         continue
 
+    #mostra a avaliação que está sendo classificada
     print(f"Classificando: {texto[:50]}...")
     resultado = classificar(texto)
 
+    #se a ia não conseguir retornar por algum erro, pula para próxima avaliação
     if resultado is None:
         print(" Não consegui classificar, pulando para próxima avaliação")
         continue
 
+    #salva a avaliação no banco de dados com a resposta da IA
     salvar(conn, texto, resultado)
     novas =+ 1
-    print(f" {resultado['Sentimento']} | {resultado['Tema']}")
-    time.sleep(2)
+    print(f" {resultado['Sentimento']} | {resultado['Tema']}") #mostra o sentimento e o tema da avaliação
+    time.sleep(2) #espera 2 segundos
 
+#mostra quantas avaliações diferentes foram salvas
 print(f"\n{novas} avaliações novas salvas.")
 
+#seleciona as avaliações negativas por tema, e ordena da maior quantidade para menor
 print("\nReclamações por tema: ")
 cursor = conn.execute("""
         SELECT tema, COUNT(*) AS total
@@ -130,7 +138,10 @@ cursor = conn.execute("""
         GROUP BY tema
         ORDER BY total DESC
 """)
+
+#mostra o retorno da cunsulta
 for tema, total in cursor.fetchall():
     print(f" {tema}: {total}")
 
+#fecha a conexão
 conn.close()
